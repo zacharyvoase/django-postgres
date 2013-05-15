@@ -9,6 +9,8 @@ from django.db import connection, transaction
 from django.db import models
 import psycopg2
 
+from . import six
+
 
 FIELD_SPEC_REGEX = (r'^([A-Za-z_][A-Za-z0-9_]*)\.'
                     r'([A-Za-z_][A-Za-z0-9_]*)\.'
@@ -44,9 +46,9 @@ def realize_deferred_projections(sender, *args, **kwargs):
     app_label = sender._meta.app_label
     model_name = sender.__name__.lower()
     pending = _DEFERRED_PROJECTIONS.pop((app_label, model_name), {})
-    for view_cls, field_names in pending.iteritems():
+    for view_cls, field_names in six.iteritems(pending):
         field_instances = get_fields_by_name(sender, *field_names)
-        for name, field in field_instances.iteritems():
+        for name, field in six.iteritems(field_instances):
             # Only assign the field if the view does not already have an
             # attribute or explicitly-defined field with that name.
             if hasattr(view_cls, name) or hasfield(view_cls, name):
@@ -57,7 +59,7 @@ models.signals.class_prepared.connect(realize_deferred_projections)
 
 def create_views(models_module, update=True, force=False):
     """Create the database views for a given models module."""
-    for name, view_cls in vars(models_module).iteritems():
+    for name, view_cls in six.iteritems(vars(models_module)):
         if not (isinstance(view_cls, type) and
                 issubclass(view_cls, View) and
                 hasattr(view_cls, 'sql')):
@@ -66,7 +68,7 @@ def create_views(models_module, update=True, force=False):
         try:
             created = create_view(connection, view_cls._meta.db_table,
                                   view_cls.sql, update=update, force=force)
-        except Exception, exc:
+        except Exception as exc:
             exc.view_cls = view_cls
             exc.python_name = models_module.__name__ + '.' + name
             raise
